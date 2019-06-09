@@ -6,7 +6,7 @@
   <version>0.1-SNAPSHOT</version>
 
   <name>ResourcePack</name>
-  <url>https://cavetale.com</url>
+  <url>https://github.com/StarTux/ResourcePack</url>
   <packaging>jar</packaging>
 
   <properties>
@@ -46,12 +46,6 @@
     <repository>
       <id>papermc</id>
       <url>https://papermc.io/repo/repository/maven-public/</url>      
-    </repository>
-
-    <!-- Cavetale Repo -->
-    <repository>
-      <id>cavetale</id>
-      <url>https://cavetale.com/jenkins/plugin/repository/everything/</url>
     </repository>
 
   </repositories>

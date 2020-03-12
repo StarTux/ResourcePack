@@ -22,8 +22,8 @@ default:
     description: '&e- &6{name} '
     use: '&6[Use]'
     always: '&6[Always]'
+    disable: '&c[Disable]'
     download: '&9[&nDownload&9]'
-    confirm: '&6Using {name}'
 
 resourcePacks:
   # Edit as needed. Add one section per pack.

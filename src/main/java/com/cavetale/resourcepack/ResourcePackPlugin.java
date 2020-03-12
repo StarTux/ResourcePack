@@ -66,6 +66,13 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                 packCommand(player, "always", args[1]);
             }
             return true;
+        case "disable":
+            if (args.length != 2) {
+                player.sendMessage(ChatColor.RED + "Usage: /rp disable <pack>");
+            } else {
+                packCommand(player, "disable", args[1]);
+            }
+            return true;
         default:
             if (args.length == 1
                 && !args[0].contains(".")
@@ -108,25 +115,33 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             player.sendMessage(ChatColor.RED + "Unknown pack: " + pack + ".");
             return;
         }
-        setPack(player, pack);
+        String displayName = format(getConfigString(pack, "displayName"));
         switch (cmd) {
         case "use":
-            if (playersConfig.isString(player.getUniqueId().toString())) {
-                playersConfig.set(player.getUniqueId().toString(), null);
-                savePlayersConfig();
-            }
+            player.sendMessage(ChatColor.GREEN + "Using pack: " + displayName
+                               + ChatColor.GREEN + ".");
+            setPack(player, pack);
             break;
         case "always":
             playersConfig.set(player.getUniqueId().toString(), pack);
             savePlayersConfig();
+            setPack(player, pack);
+            listPacks(player);
+            player.sendMessage(ChatColor.GREEN + "Using pack automatically: "
+                               + displayName + ChatColor.GREEN + ".");
+            break;
+        case "disable":
+            if (playersConfig.isString(player.getUniqueId().toString())) {
+                playersConfig.set(player.getUniqueId().toString(), null);
+                savePlayersConfig();
+            }
+            listPacks(player);
+            player.sendMessage(ChatColor.RED + "Disabling pack: "
+                               + displayName + ChatColor.RED + ".");
+            player.sendMessage(ChatColor.RED
+                               + "You have to relog for this to take effect.");
             break;
         default: break;
-        }
-        String confirm = getConfigString(pack, "messages.confirm");
-        if (confirm != null) {
-            String name = format(getConfigString(pack, "displayName"));
-            String url = getConfigString(pack, "url");
-            player.sendMessage(format(confirm, pack, name, url));
         }
     }
 
@@ -227,6 +242,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         if (!header.isEmpty()) {
             player.sendMessage(header);
         }
+        String pack = playersConfig.getString(player.getUniqueId().toString());
         for (String key : getConfig().getConfigurationSection("resourcePacks")
                  .getKeys(false)) {
             if ("default".equals(key)) continue;
@@ -248,15 +264,28 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                                           TextComponent.fromLegacyText(cmd)));
                 rawify(cb, msg);
             }
-            msg = getConfigString(key, "messages.always");
-            if (!msg.isEmpty()) {
-                String cmd = "/rp always " + key;
-                msg = format(msg, key, name, url);
-                cb.append(" ").reset().append(msg)
-                    .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
-                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                          TextComponent.fromLegacyText(cmd)));
-                rawify(cb, msg);
+            if (!key.equals(pack)) {
+                msg = getConfigString(key, "messages.always");
+                if (!msg.isEmpty()) {
+                    String cmd = "/rp always " + key;
+                    msg = format(msg, key, name, url);
+                    cb.append(" ").reset().append(msg)
+                        .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                        .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                              TextComponent.fromLegacyText(cmd)));
+                    rawify(cb, msg);
+                }
+            } else {
+                msg = getConfigString(key, "messages.disable");
+                if (!msg.isEmpty()) {
+                    String cmd = "/rp disable " + key;
+                    msg = format(msg, key, name, url);
+                    cb.append(" ").reset().append(msg)
+                        .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                        .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                              TextComponent.fromLegacyText(cmd)));
+                    rawify(cb, msg);
+                }
             }
             msg = getConfigString(key, "messages.download");
             if (!msg.isEmpty()) {

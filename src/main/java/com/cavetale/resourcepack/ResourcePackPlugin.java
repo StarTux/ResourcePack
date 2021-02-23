@@ -15,6 +15,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ResourcePackPlugin extends JavaPlugin implements Listener {
@@ -29,10 +30,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     }
 
     @Override
-    public boolean onCommand(final CommandSender sender,
-                             final Command command,
-                             final String alias,
-                             final String[] args) {
+    public boolean onCommand(final CommandSender sender, final Command command, final String alias, final String[] args) {
         if (args.length == 1
             && args[0].equals("reload")
             && sender.hasPermission("resourcepack.admin")) {
@@ -187,7 +185,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         boolean obfuscated = false;
         for (int i = 0; i < msg.length() - 1; i += 2) {
             if (msg.charAt(i) != ChatColor.COLOR_CHAR) break;
-            ChatColor c = ChatColor.getByChar(msg.charAt(i + 1));
+            org.bukkit.ChatColor c = org.bukkit.ChatColor.getByChar(msg.charAt(i + 1));
             if (c == null) break;
             switch (c) {
             case BLACK:
@@ -206,7 +204,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             case LIGHT_PURPLE:
             case YELLOW:
             case WHITE:
-                color = c;
+                color = ChatColor.getByChar(c.getChar());
                 italic = false;
                 bold = false;
                 strikethrough = false;
@@ -345,5 +343,13 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                               () -> listPacks(player),
                               100L);
         }
+    }
+
+    @EventHandler
+    public void onPlayerResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        getLogger().info("Status"
+                         + " player=" + event.getPlayer().getName()
+                         + " status=" + event.getStatus()
+                         + " hash=" + event.getHash());
     }
 }

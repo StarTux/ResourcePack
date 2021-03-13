@@ -16,12 +16,6 @@
     <finalName>${project.name}</finalName>
     <plugins>
 
-      <!-- Surefire for Testing -->
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.22.0</version>
-      </plugin>
-
       <!-- Java 8 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -65,6 +59,15 @@
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.16</version>
+      <scope>compile</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- Connect -->
+    <dependency>
+      <groupId>com.winthier.connect</groupId>
+      <artifactId>connect</artifactId>
+      <version>0.1-SNAPSHOT</version>
       <scope>compile</scope>
       <optional>true</optional>
     </dependency>

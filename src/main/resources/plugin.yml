@@ -2,21 +2,25 @@ main: com.cavetale.resourcepack.ResourcePackPlugin
 name: ResourcePack
 version: 0.1
 api-version: 1.13
-description: Offer players to use your resource pack(s).
+description: Use Cavetale Resource Pack
 author: StarTux
 website: https://github.com/StarTux/ResourcePack
-depend: []
+depend: [Connect]
 softdepend: []
 commands:
+
   resourcepack:
     aliases: [rp]
-    description: ResourcePack Command
-    permission: resourcepack.resourcepack
-    usage: /<command>
+    description: Send the resource pack
+    permission: resourcepack.command
+    usage: /resourcepack
+
 permissions:
-  resourcepack.resourcepack:
+
+  resourcepack.command:
     description: Use /resourcepack
-    default: true
-  resourcepack.admin:
-    description: Use admin commands
     default: op
+
+  resourcepack.send:
+    description: Send the resource pack on join
+    default: false

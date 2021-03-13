@@ -1,15 +1,18 @@
 package com.cavetale.resourcepack;
 
-import java.io.File;
+import com.winthier.connect.Connect;
+import com.winthier.connect.event.ConnectMessageEvent;
 import java.io.IOException;
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.TextComponent;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,339 +20,168 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import redis.clients.jedis.Jedis;
 
 public final class ResourcePackPlugin extends JavaPlugin implements Listener {
-    private YamlConfiguration playersConfig;
+    String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
+    String hash = "";
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
-        playersConfig = YamlConfiguration
-            .loadConfiguration(new File(getDataFolder(), "players.yml"));
+        loadHash();
+        Bukkit.getScheduler().runTaskTimer(this, this::loadHashAsync, 0L, 20L * 60L);
         getServer().getPluginManager().registerEvents(this, this);
     }
 
     @Override
-    public boolean onCommand(final CommandSender sender, final Command command, final String alias, final String[] args) {
-        if (args.length == 1
-            && args[0].equals("reload")
-            && sender.hasPermission("resourcepack.admin")) {
-            reloadConfig();
-            playersConfig = YamlConfiguration
-                .loadConfiguration(new File(getDataFolder(), "players.yml"));
-            sender.sendMessage("[ResourcePack] configuration reloaded.");
-            return true;
-        }
+    public boolean onCommand(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length != 0) return false;
         if (!(sender instanceof Player)) {
-            sender.sendMessage("Player expected.");
+            sender.sendMessage("[resourcepack:rp] Player expected");
             return true;
         }
-        final Player player = (Player) sender;
-        if (args.length == 0) {
-            listPacks(player);
-            return true;
-        }
-        switch (args[0]) {
-        case "use":
-            if (args.length != 2) {
-                player.sendMessage(ChatColor.RED + "Usage: /rp use <pack>");
-            } else {
-                packCommand(player, "use", args[1]);
-            }
-            return true;
-        case "always":
-            if (args.length != 2) {
-                player.sendMessage(ChatColor.RED + "Usage: /rp always <pack>");
-            } else {
-                packCommand(player, "always", args[1]);
-            }
-            return true;
-        case "disable":
-            if (args.length != 2) {
-                player.sendMessage(ChatColor.RED + "Usage: /rp disable <pack>");
-            } else {
-                packCommand(player, "disable", args[1]);
-            }
-            return true;
-        default:
-            if (args.length == 1
-                && !args[0].contains(".")
-                && getConfig()
-                .isConfigurationSection("resourcePacks." + args[0])) {
-                packCommand(player, "use", args[0]);
-            }
-            player.sendMessage(ChatColor.RED + "Unknown command or pack: "
-                               + args[0] + ".");
-            return true;
-        }
-    }
-
-    void setPack(final Player player, final String pack) {
-        final String url = getConfigString(pack, "url");
-        final String hash = getConfigString(pack, "hash");
-        if (hash.equals(player.getResourcePackHash())) {
-            if (getConfig().getBoolean("debug")) {
-                getLogger().info("Player has known hash: " + hash
-                                 + ". Skipping.");
-            }
-            return;
-        }
-        if (getConfig().getBoolean("debug")) {
-            getLogger().info("Sending resource pack to " + player.getName()
-                             + ": " + url + " hash=" + hash);
-        }
+        Player player = (Player) sender;
         player.setResourcePack(url, hash);
-    }
-
-    void packCommand(final Player player,
-                     final String cmd,
-                     final String pack) {
-        if (!getConfig().isConfigurationSection("resourcePacks." + pack)) {
-            player.sendMessage(ChatColor.RED + "Unknown pack: " + pack + ".");
-            return;
-        }
-        String perm = getConfigString(pack, "permission");
-        if (!perm.isEmpty() && !player.hasPermission(perm)) {
-            player.sendMessage(ChatColor.RED + "Unknown pack: " + pack + ".");
-            return;
-        }
-        String displayName = format(getConfigString(pack, "displayName"));
-        switch (cmd) {
-        case "use":
-            player.sendMessage(ChatColor.GREEN + "Using pack: " + displayName
-                               + ChatColor.GREEN + ".");
-            setPack(player, pack);
-            break;
-        case "always":
-            playersConfig.set(player.getUniqueId().toString(), pack);
-            savePlayersConfig();
-            setPack(player, pack);
-            listPacks(player);
-            player.sendMessage(ChatColor.GREEN + "Using pack automatically: "
-                               + displayName + ChatColor.GREEN + ".");
-            break;
-        case "disable":
-            if (playersConfig.isString(player.getUniqueId().toString())) {
-                playersConfig.set(player.getUniqueId().toString(), null);
-                savePlayersConfig();
-            }
-            listPacks(player);
-            player.sendMessage(ChatColor.RED + "Disabling pack: "
-                               + displayName + ChatColor.RED + ".");
-            player.sendMessage(ChatColor.RED
-                               + "You have to relog for this to take effect.");
-            break;
-        default: break;
-        }
-    }
-
-    void savePlayersConfig() {
-        try {
-            playersConfig.save(new File(getDataFolder(), "players.yml"));
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-    }
-
-    String getConfigString(final String pack, final String key) {
-        String result = getConfig()
-            .getString("resourcePacks." + pack + "." + key);
-        if (result != null) return result;
-        result = getConfig().getString("default." + key);
-        return result != null
-            ? result
-            : "";
-    }
-
-    String format(final String inp) {
-        return ChatColor.translateAlternateColorCodes('&', inp);
-    }
-
-    String format(final String inp,
-                  final String key,
-                  final String name,
-                  final String url) {
-        return ChatColor
-            .translateAlternateColorCodes('&', inp)
-            .replace("{key}", key)
-            .replace("{name}", name)
-            .replace("{url}", url);
-    }
-
-    void rawify(final ComponentBuilder cb, final String msg) {
-        ChatColor color = null;
-        boolean italic = false;
-        boolean bold = false;
-        boolean strikethrough = false;
-        boolean underlined = false;
-        boolean obfuscated = false;
-        for (int i = 0; i < msg.length() - 1; i += 2) {
-            if (msg.charAt(i) != ChatColor.COLOR_CHAR) break;
-            org.bukkit.ChatColor c = org.bukkit.ChatColor.getByChar(msg.charAt(i + 1));
-            if (c == null) break;
-            switch (c) {
-            case BLACK:
-            case DARK_BLUE:
-            case DARK_GREEN:
-            case DARK_AQUA:
-            case DARK_RED:
-            case DARK_PURPLE:
-            case GOLD:
-            case GRAY:
-            case DARK_GRAY:
-            case BLUE:
-            case GREEN:
-            case AQUA:
-            case RED:
-            case LIGHT_PURPLE:
-            case YELLOW:
-            case WHITE:
-                color = ChatColor.getByChar(c.getChar());
-                italic = false;
-                bold = false;
-                strikethrough = false;
-                underlined = false;
-                obfuscated = false;
-                break;
-            case RESET:
-                color = ChatColor.WHITE;
-                italic = false;
-                bold = false;
-                strikethrough = false;
-                underlined = false;
-                obfuscated = false;
-                break;
-            case ITALIC: italic = true; break;
-            case BOLD: bold = true; break;
-            case STRIKETHROUGH: strikethrough = true; break;
-            case UNDERLINE: underlined = true; break;
-            case MAGIC: obfuscated = true; break;
-            default: break;
-            }
-        }
-        if (color != null) cb.color(color);
-        if (italic) cb.italic(true);
-        if (bold) cb.bold(true);
-        if (strikethrough) cb.strikethrough(true);
-        if (underlined) cb.underlined(true);
-        if (obfuscated) cb.obfuscated(true);
-    }
-
-    void listPacks(final Player player) {
-        String header = format(getConfig().getString("header"));
-        if (!header.isEmpty()) {
-            player.sendMessage(header);
-        }
-        String pack = playersConfig.getString(player.getUniqueId().toString());
-        for (String key : getConfig().getConfigurationSection("resourcePacks")
-                 .getKeys(false)) {
-            if ("default".equals(key)) continue;
-            final String perm = getConfigString(key, "permission");
-            if (!perm.isEmpty() && !player.hasPermission(perm)) continue;
-            final String name = format(getConfigString(key, "displayName"));
-            final String url = getConfigString(key, "url");
-            ComponentBuilder cb = new ComponentBuilder("");
-            cb.append(format(getConfigString(key, "messages.description"),
-                             key, name, url));
-            String msg;
-            msg = getConfigString(key, "messages.use");
-            if (!msg.isEmpty()) {
-                String cmd = "/rp use " + key;
-                msg = format(msg, key, name, url);
-                cb.append(" ").reset().append(msg)
-                    .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
-                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                          TextComponent.fromLegacyText(cmd)));
-                rawify(cb, msg);
-            }
-            if (!key.equals(pack)) {
-                msg = getConfigString(key, "messages.always");
-                if (!msg.isEmpty()) {
-                    String cmd = "/rp always " + key;
-                    msg = format(msg, key, name, url);
-                    cb.append(" ").reset().append(msg)
-                        .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
-                        .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                              TextComponent.fromLegacyText(cmd)));
-                    rawify(cb, msg);
-                }
-            } else {
-                msg = getConfigString(key, "messages.disable");
-                if (!msg.isEmpty()) {
-                    String cmd = "/rp disable " + key;
-                    msg = format(msg, key, name, url);
-                    cb.append(" ").reset().append(msg)
-                        .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
-                        .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                              TextComponent.fromLegacyText(cmd)));
-                    rawify(cb, msg);
-                }
-            }
-            msg = getConfigString(key, "messages.download");
-            if (!msg.isEmpty()) {
-                msg = format(msg, key, name, url);
-                cb.append(" ").reset().append(msg)
-                    .event(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
-                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                          TextComponent.fromLegacyText(url)));
-                rawify(cb, msg);
-            }
-            player.spigot().sendMessage(cb.create());
-        }
-        String footer = format(getConfig().getString("footer"));
-        if (!footer.isEmpty()) {
-            player.sendMessage(footer);
-        }
+        player.sendMessage(ChatColor.GREEN + "Sending resource pack...");
+        return true;
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onPlayerJoin(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
-        String pack = playersConfig.getString(player.getUniqueId().toString());
-        if (pack != null) {
-            if (!getConfig().isConfigurationSection("resourcePacks." + pack)) {
-                if (getConfig().getBoolean("debug")) {
-                    getLogger().warning(player.getName()
-                                     + " has unknown resource pack " + pack
-                                     + ". Resetting.");
-                }
-                playersConfig.set(player.getUniqueId().toString(), null);
-                savePlayersConfig();
-                return;
-            }
-            String perm = getConfigString(pack, "permission");
-            if (!perm.isEmpty() && !player.hasPermission(perm)) {
-                playersConfig.set(player.getUniqueId().toString(), null);
-                savePlayersConfig();
-                if (getConfig().getBoolean("debug")) {
-                    getLogger().warning(player.getName()
-                                     + " has resource pack " + pack
-                                     + " without permission. Resetting.");
-                }
-                // Do not return
-            } else {
-                getServer().getScheduler()
-                    .runTaskLater(this,
-                                  () -> setPack(player, pack),
-                                  20L);
-                return;
-            }
+        if (hash == null || hash.isEmpty()) return;
+        if (hasPackLoaded(player)) return;
+        if (!player.hasPermission("resourcepack.send")) return;
+        getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
+        player.setResourcePack(url, hash);
+    }
+
+    public boolean hasPackLoaded(Player player) {
+        UUID uuid = player.getUniqueId();
+        try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
+            String playerHash = jedis.get("ResourcePack." + uuid);
+            return Objects.equals(hash, playerHash);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        if (getConfig().getBoolean("showOnJoin")
-            && player.hasPermission("resourcepack.resourcepack")) {
-            // Add a little delay
-            getServer().getScheduler()
-                .runTaskLater(this,
-                              () -> listPacks(player),
-                              100L);
+        return false;
+    }
+
+    private void loadHashAsync() {
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                final String newHash = readHash();
+                Bukkit.getScheduler().runTask(this, () -> {
+                        if (newHash.isEmpty()) {
+                            getLogger().warning("Hash not found!");
+                        } else if (!newHash.equals(hash)) {
+                            hash = newHash;
+                            getLogger().info("New hash: '" + hash + "'");
+                            for (Player player : Bukkit.getOnlinePlayers()) {
+                                if (!player.hasPermission("resourcepack.send")) continue;
+                                if (hasPackLoaded(player)) continue;
+                                getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
+                                player.setResourcePack(url, hash);
+                            }
+                        }
+                    });
+            });
+    }
+
+    private void loadHash() {
+        hash = readHash();
+        if (hash.isEmpty()) {
+            getLogger().warning("Hash not found!");
+        } else {
+            getLogger().info("New hash: '" + hash + "'");
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (!player.hasPermission("resourcepack.send")) continue;
+                if (hasPackLoaded(player)) continue;
+                getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
+                player.setResourcePack(url, hash);
+            }
         }
     }
 
-    @EventHandler
-    public void onPlayerResourcePackStatus(PlayerResourcePackStatusEvent event) {
-        getLogger().info("Status"
-                         + " player=" + event.getPlayer().getName()
-                         + " status=" + event.getStatus()
-                         + " hash=" + event.getHash());
+    public String readHash() {
+        try {
+            Path path = Paths.get("/var/www/static/resourcepacks/Cavetale.zip.sha1").toRealPath();
+            String content = Files.readString(path);
+            String sha1 = content.split("\\s+", 2)[0];
+            return sha1;
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            return "";
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    void onPlayerResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        Player player = event.getPlayer();
+        switch (event.getStatus()) {
+        case FAILED_DOWNLOAD:
+            getLogger().warning("Failed to download resource pack: " +  player.getName());
+            try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
+                UUID uuid = player.getUniqueId();
+                jedis.del("ResourcePack." + uuid);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case DECLINED:
+            getLogger().warning("Declined resource pack: " +  player.getName());
+            player.sendMessage(ChatColor.RED + "Please use our Resource Pack:");
+            player.sendMessage(ChatColor.RED + "- Open your Multiplayer server list");
+            player.sendMessage(ChatColor.RED + "- Add or Edit cavetale.com");
+            player.sendMessage(ChatColor.RED + "- Set 'Server Resource Packs: Enabled'");
+            player.sendMessage(ChatColor.RED + "- Or click 'Yes' if prompted");
+            break;
+        case ACCEPTED:
+        case SUCCESSFULLY_LOADED: {
+            try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
+                UUID uuid = player.getUniqueId();
+                jedis.set("ResourcePack." + uuid, hash);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    @EventHandler @SuppressWarnings("Unchecked")
+    void onConnectMessage(ConnectMessageEvent event) {
+        switch (event.getMessage().getChannel()) {
+        case "bungee": {
+            if (!(event.getMessage().getPayload() instanceof Map)) return;
+            Map<String, Object> payload = (Map<String, Object>) event.getMessage().getPayload();
+            if (!(payload.get("type") instanceof String)) return;
+            String type = (String) payload.get("type");
+            if (!(payload.get("player") instanceof Map)) return;
+            Map<String, Object> player = (Map<String, Object>) payload.get("player");
+            if (!(player.get("uuid") instanceof String)) return;
+            UUID uuid;
+            try {
+                uuid = UUID.fromString((String) player.get("uuid"));
+            } catch (IllegalArgumentException iae) {
+                return;
+            }
+            switch (type) {
+            case "PlayerDisconnectEvent":
+                try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
+                    jedis.del("ResourcePack." + uuid);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            default:
+                break;
+            }
+            break;
+        }
+        default:
+            break;
+        }
     }
 }

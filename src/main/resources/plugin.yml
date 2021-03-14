@@ -24,3 +24,7 @@ permissions:
   resourcepack.send:
     description: Send the resource pack on join
     default: false
+
+  resourcepack.resend:
+    description: Send the resource pack when it updates
+    default: false

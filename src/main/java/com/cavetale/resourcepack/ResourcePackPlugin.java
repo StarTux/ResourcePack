@@ -26,6 +26,12 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
     String hash = "";
 
+    enum LoadStatus {
+        LOADED,
+        LOADED_OUTDATED,
+        NOT_LOADED;
+    }
+
     @Override
     public void onEnable() {
         loadHash();
@@ -50,21 +56,38 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     public void onPlayerJoin(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
         if (hash == null || hash.isEmpty()) return;
-        if (hasPackLoaded(player)) return;
-        if (!player.hasPermission("resourcepack.send")) return;
-        getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
-        player.setResourcePack(url, hash);
+        switch (getLoadStatus(player)) {
+        case NOT_LOADED:
+            if (player.hasPermission("resourcepack.send")) {
+                getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
+                player.setResourcePack(url, hash);
+            }
+            break;
+        case LOADED_OUTDATED:
+            if (player.hasPermission("resourcepack.resend")) {
+                getLogger().info("Re-sending pack to " + player.getName() + ": " + url + ", " + hash);
+                player.setResourcePack(url, hash);
+            }
+            break;
+        case LOADED:
+        default:
+            break;
+        }
     }
 
-    public boolean hasPackLoaded(Player player) {
+    public LoadStatus getLoadStatus(Player player) {
         UUID uuid = player.getUniqueId();
+        String playerHash;
         try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
-            String playerHash = jedis.get("ResourcePack." + uuid);
-            return Objects.equals(hash, playerHash);
+            playerHash = jedis.get("ResourcePack." + uuid);
         } catch (Exception e) {
             e.printStackTrace();
+            return LoadStatus.NOT_LOADED;
         }
-        return false;
+        if (playerHash == null) return LoadStatus.NOT_LOADED;
+        return Objects.equals(hash, playerHash)
+            ? LoadStatus.LOADED
+            : LoadStatus.LOADED_OUTDATED;
     }
 
     private void loadHashAsync() {
@@ -77,10 +100,10 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             hash = newHash;
                             getLogger().info("New hash: '" + hash + "'");
                             for (Player player : Bukkit.getOnlinePlayers()) {
-                                if (!player.hasPermission("resourcepack.send")) continue;
-                                if (hasPackLoaded(player)) continue;
-                                getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
-                                player.setResourcePack(url, hash);
+                                if (player.hasPermission("resourcepack.resend")) {
+                                    getLogger().info("Re-sending pack to " + player.getName() + ": " + url + ", " + hash);
+                                    player.setResourcePack(url, hash);
+                                }
                             }
                         }
                     });
@@ -93,12 +116,6 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             getLogger().warning("Hash not found!");
         } else {
             getLogger().info("New hash: '" + hash + "'");
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                if (!player.hasPermission("resourcepack.send")) continue;
-                if (hasPackLoaded(player)) continue;
-                getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
-                player.setResourcePack(url, hash);
-            }
         }
     }
 

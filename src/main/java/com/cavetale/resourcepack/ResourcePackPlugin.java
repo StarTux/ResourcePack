@@ -156,7 +156,9 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         case SUCCESSFULLY_LOADED: {
             try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
                 UUID uuid = player.getUniqueId();
-                jedis.set("ResourcePack." + uuid, hash);
+                String key = "ResourcePack." + uuid;
+                jedis.set(key, hash);
+                jedis.expire(key, 60 * 60 * 24);
             } catch (Exception e) {
                 e.printStackTrace();
             }

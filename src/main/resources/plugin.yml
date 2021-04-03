@@ -26,5 +26,9 @@ permissions:
     default: false
 
   resourcepack.resend:
+    description: Send the resource when switching servers if it updated
+    default: false
+
+  resourcepack.autoupdate:
     description: Send the resource pack when it updates
     default: false

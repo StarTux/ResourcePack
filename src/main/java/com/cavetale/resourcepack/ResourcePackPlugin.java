@@ -100,7 +100,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             hash = newHash;
                             getLogger().info("New hash: '" + hash + "'");
                             for (Player player : Bukkit.getOnlinePlayers()) {
-                                if (player.hasPermission("resourcepack.resend")) {
+                                if (player.hasPermission("resourcepack.autoupdate")) {
                                     getLogger().info("Re-sending pack to " + player.getName() + ": " + url + ", " + hash);
                                     player.setResourcePack(url, hash);
                                 }

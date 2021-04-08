@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import redis.clients.jedis.Jedis;
@@ -25,6 +27,7 @@ import redis.clients.jedis.Jedis;
 public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
     String hash = "";
+    Map<UUID, Integer> failedAttempts = new HashMap<>();
 
     enum LoadStatus {
         LOADED,
@@ -52,7 +55,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
         if (hash == null || hash.isEmpty()) return;
@@ -64,8 +67,8 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             }
             break;
         case LOADED_OUTDATED:
-            if (player.hasPermission("resourcepack.resend")) {
-                getLogger().info("Re-sending pack to " + player.getName() + ": " + url + ", " + hash);
+            if (player.hasPermission("resourcepack.send.switch")) {
+                getLogger().info("Sending updated pack to " + player.getName() + ": " + url + ", " + hash);
                 player.setResourcePack(url, hash);
             }
             break;
@@ -73,6 +76,11 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         default:
             break;
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerQuit(final PlayerQuitEvent event) {
+        failedAttempts.remove(event.getPlayer().getUniqueId());
     }
 
     public LoadStatus getLoadStatus(Player player) {
@@ -100,8 +108,8 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             hash = newHash;
                             getLogger().info("New hash: '" + hash + "'");
                             for (Player player : Bukkit.getOnlinePlayers()) {
-                                if (player.hasPermission("resourcepack.autoupdate")) {
-                                    getLogger().info("Re-sending pack to " + player.getName() + ": " + url + ", " + hash);
+                                if (player.hasPermission("resourcepack.send.update")) {
+                                    getLogger().info("Sending updated pack to " + player.getName() + ": " + url + ", " + hash);
                                     player.setResourcePack(url, hash);
                                 }
                             }
@@ -135,16 +143,26 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     void onPlayerResourcePackStatus(PlayerResourcePackStatusEvent event) {
         Player player = event.getPlayer();
         switch (event.getStatus()) {
-        case FAILED_DOWNLOAD:
-            getLogger().warning("Failed to download resource pack: " +  player.getName());
+        case FAILED_DOWNLOAD: {
+            UUID uuid = player.getUniqueId();
+            int failCount = failedAttempts.compute(uuid, (u, i) -> i != null ? i + 1 : 1);
+            int maxFailCount = 2;
+            getLogger().warning("Failed attempt #" + failCount + "/" + maxFailCount + " to download resource pack: " +  player.getName());
             try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
-                UUID uuid = player.getUniqueId();
                 jedis.del("ResourcePack." + uuid);
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            if (failCount <= maxFailCount && player.hasPermission("resourcepack.send.failed")) {
+                Bukkit.getScheduler().runTaskLater(this, () -> {
+                        getLogger().info("Re-sending failed pack to " + player.getName() + ": " + url + ", " + hash);
+                        player.setResourcePack(url, hash);
+                    }, 20L);
+            }
             break;
-        case DECLINED:
+        }
+        case DECLINED: {
+            failedAttempts.remove(player.getUniqueId());
             getLogger().warning("Declined resource pack: " +  player.getName());
             player.sendMessage(ChatColor.RED + "Please use our Resource Pack:");
             player.sendMessage(ChatColor.RED + "- Open your Multiplayer server list");
@@ -152,8 +170,10 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             player.sendMessage(ChatColor.RED + "- Set 'Server Resource Packs: Enabled'");
             player.sendMessage(ChatColor.RED + "- Or click 'Yes' if prompted");
             break;
+        }
         case ACCEPTED:
         case SUCCESSFULLY_LOADED: {
+            failedAttempts.remove(player.getUniqueId());
             try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
                 UUID uuid = player.getUniqueId();
                 String key = "ResourcePack." + uuid;

@@ -22,13 +22,17 @@ permissions:
     default: op
 
   resourcepack.send:
-    description: Send the resource pack on join
+    description: "Send the resource pack if they don't have it yet"
     default: false
 
-  resourcepack.resend:
+  resourcepack.send.switch:
     description: Send the resource when switching servers if it updated
     default: false
 
-  resourcepack.autoupdate:
+  resourcepack.send.failed:
+    description: Send the resource again when it fails to download
+    default: false
+
+  resourcepack.send.update:
     description: Send the resource pack when it updates
     default: false

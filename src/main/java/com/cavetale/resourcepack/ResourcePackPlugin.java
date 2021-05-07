@@ -10,8 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -51,7 +52,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         }
         Player player = (Player) sender;
         player.setResourcePack(url, hash);
-        player.sendMessage(ChatColor.GREEN + "Sending resource pack...");
+        player.sendMessage(Component.text("Sending resource pack...", NamedTextColor.GREEN));
         return true;
     }
 
@@ -62,13 +63,12 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         switch (getLoadStatus(player)) {
         case NOT_LOADED:
             if (player.hasPermission("resourcepack.send")) {
-                getLogger().info("Sending pack to " + player.getName() + ": " + url + ", " + hash);
                 player.setResourcePack(url, hash);
             }
             break;
         case LOADED_OUTDATED:
             if (player.hasPermission("resourcepack.send.switch")) {
-                getLogger().info("Sending updated pack to " + player.getName() + ": " + url + ", " + hash);
+                getLogger().info("Sending updated pack to " + player.getName());
                 player.setResourcePack(url, hash);
             }
             break;
@@ -109,7 +109,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             getLogger().info("New hash: '" + hash + "'");
                             for (Player player : Bukkit.getOnlinePlayers()) {
                                 if (player.hasPermission("resourcepack.send.update")) {
-                                    getLogger().info("Sending updated pack to " + player.getName() + ": " + url + ", " + hash);
+                                    getLogger().info("Sending updated pack to " + player.getName());
                                     player.setResourcePack(url, hash);
                                 }
                             }
@@ -147,7 +147,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             UUID uuid = player.getUniqueId();
             int failCount = failedAttempts.compute(uuid, (u, i) -> i != null ? i + 1 : 1);
             int maxFailCount = 2;
-            getLogger().warning("Failed attempt #" + failCount + "/" + maxFailCount + " to download resource pack: " +  player.getName());
+            getLogger().warning(player.getName() + ": failed download attempt " + failCount + "/" + maxFailCount);
             try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
                 jedis.del("ResourcePack." + uuid);
             } catch (Exception e) {
@@ -155,7 +155,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             }
             if (failCount <= maxFailCount && player.hasPermission("resourcepack.send.failed")) {
                 Bukkit.getScheduler().runTaskLater(this, () -> {
-                        getLogger().info("Re-sending failed pack to " + player.getName() + ": " + url + ", " + hash);
+                        getLogger().info("Re-sending failed pack to " + player.getName());
                         player.setResourcePack(url, hash);
                     }, 20L);
             }
@@ -164,11 +164,16 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         case DECLINED: {
             failedAttempts.remove(player.getUniqueId());
             getLogger().warning("Declined resource pack: " +  player.getName());
-            player.sendMessage(ChatColor.RED + "Please use our Resource Pack:");
-            player.sendMessage(ChatColor.RED + "- Open your Multiplayer server list");
-            player.sendMessage(ChatColor.RED + "- Add or Edit cavetale.com");
-            player.sendMessage(ChatColor.RED + "- Set 'Server Resource Packs: Enabled'");
-            player.sendMessage(ChatColor.RED + "- Or click 'Yes' if prompted");
+            Component msg = Component.text()
+                .append(Component.text("Please use our Resource Pack:", NamedTextColor.RED))
+                .append(Component.newline())
+                .append(Component.text("\u2022 Open your Multiplayer Server List", NamedTextColor.RED))
+                .append(Component.newline())
+                .append(Component.text("\u2022 Add or Edit cavetale.com", NamedTextColor.RED))
+                .append(Component.newline())
+                .append(Component.text("\u2022 Set 'Server Resource Packs: Enabled'", NamedTextColor.RED))
+                .build();
+            player.sendMessage(msg);
             break;
         }
         case ACCEPTED:

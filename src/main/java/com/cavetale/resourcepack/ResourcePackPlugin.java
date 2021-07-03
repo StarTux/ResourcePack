@@ -154,7 +154,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            if (failCount <= maxFailCount && player.hasPermission("resourcepack.send.failed")) {
+            if (failCount < maxFailCount && player.hasPermission("resourcepack.send.failed")) {
                 Bukkit.getScheduler().runTaskLater(this, () -> {
                         getLogger().info("Re-sending failed pack to " + player.getName());
                         player.setResourcePack(url, hash);

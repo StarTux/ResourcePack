@@ -177,7 +177,6 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             player.sendMessage(msg);
             break;
         }
-        case ACCEPTED:
         case SUCCESSFULLY_LOADED: {
             failedAttempts.remove(player.getUniqueId());
             try (Jedis jedis = Connect.getInstance().getJedisPool().getResource()) {
@@ -190,6 +189,8 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             }
             break;
         }
+        case ACCEPTED:
+            break;
         default:
             break;
         }

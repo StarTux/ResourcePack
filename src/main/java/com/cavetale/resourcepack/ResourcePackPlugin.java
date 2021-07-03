@@ -142,6 +142,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     void onPlayerResourcePackStatus(PlayerResourcePackStatusEvent event) {
         Player player = event.getPlayer();
+        getLogger().info("ResourcePack: " + event.getStatus() + " " + player.getName());
         switch (event.getStatus()) {
         case FAILED_DOWNLOAD: {
             UUID uuid = player.getUniqueId();

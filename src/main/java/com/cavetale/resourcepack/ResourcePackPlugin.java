@@ -60,22 +60,25 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     public void onPlayerJoin(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
         if (hash == null || hash.isEmpty()) return;
-        switch (getLoadStatus(player)) {
-        case NOT_LOADED:
-            if (player.hasPermission("resourcepack.send")) {
-                player.setResourcePack(url, hash);
-            }
-            break;
-        case LOADED_OUTDATED:
-            if (player.hasPermission("resourcepack.send.switch")) {
-                getLogger().info("Sending updated pack to " + player.getName());
-                player.setResourcePack(url, hash);
-            }
-            break;
-        case LOADED:
-        default:
-            break;
-        }
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+                if (!player.isOnline()) return;
+                switch (getLoadStatus(player)) {
+                case NOT_LOADED:
+                    if (player.hasPermission("resourcepack.send")) {
+                        player.setResourcePack(url, hash);
+                    }
+                    break;
+                case LOADED_OUTDATED:
+                    if (player.hasPermission("resourcepack.send.switch")) {
+                        getLogger().info("Sending updated pack to " + player.getName());
+                        player.setResourcePack(url, hash);
+                    }
+                    break;
+                case LOADED:
+                default:
+                    break;
+                }
+            }, 40L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

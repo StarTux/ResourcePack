@@ -29,6 +29,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
     String hash = "";
     Map<UUID, Integer> failedAttempts = new HashMap<>();
+    Component message = Component.text("Custom blocks and items, and awesome chat!", NamedTextColor.GREEN);
 
     enum LoadStatus {
         LOADED,
@@ -51,7 +52,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             return true;
         }
         Player player = (Player) sender;
-        player.setResourcePack(url, hash);
+        player.setResourcePack(url, hash, false, message);
         player.sendMessage(Component.text("Sending resource pack...", NamedTextColor.GREEN));
         return true;
     }
@@ -65,13 +66,13 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                 switch (getLoadStatus(player)) {
                 case NOT_LOADED:
                     if (player.hasPermission("resourcepack.send")) {
-                        player.setResourcePack(url, hash);
+                        player.setResourcePack(url, hash, false, message);
                     }
                     break;
                 case LOADED_OUTDATED:
                     if (player.hasPermission("resourcepack.send.switch")) {
                         getLogger().info("Sending updated pack to " + player.getName());
-                        player.setResourcePack(url, hash);
+                        player.setResourcePack(url, hash, false, message);
                     }
                     break;
                 case LOADED:
@@ -113,7 +114,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             for (Player player : Bukkit.getOnlinePlayers()) {
                                 if (player.hasPermission("resourcepack.send.update")) {
                                     getLogger().info("Sending updated pack to " + player.getName());
-                                    player.setResourcePack(url, hash);
+                                    player.setResourcePack(url, hash, false, message);
                                 }
                             }
                         }
@@ -160,7 +161,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             if (failCount < maxFailCount && player.hasPermission("resourcepack.send.failed")) {
                 Bukkit.getScheduler().runTaskLater(this, () -> {
                         getLogger().info("Re-sending failed pack to " + player.getName());
-                        player.setResourcePack(url, hash);
+                        player.setResourcePack(url, hash, false, message);
                     }, 20L);
             }
             break;

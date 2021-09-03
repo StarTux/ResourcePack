@@ -196,6 +196,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    @EventHandler
     void onConnectMessage(ConnectMessageEvent event) {
         // Wart: All servers will attempt to delete this
         if ("BUNGEE_PLAYER_QUIT".equals(event.getMessage().getChannel())) {

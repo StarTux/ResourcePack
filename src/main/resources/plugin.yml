@@ -36,3 +36,7 @@ permissions:
   resourcepack.send.update:
     description: Send the resource pack when it updates
     default: false
+
+  resourcepack.reset:
+    description: Reset your resource pack
+    default: op

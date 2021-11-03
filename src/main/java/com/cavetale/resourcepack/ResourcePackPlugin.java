@@ -47,12 +47,20 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 0) return false;
         if (!(sender instanceof Player)) {
             sender.sendMessage("[resourcepack:rp] Player expected");
             return true;
         }
         Player player = (Player) sender;
+        if (args.length == 1 && args[0].equals("reset") && player.hasPermission("resourcepack.reset")) {
+            player.sendMessage(Component.text("Sending void resource pack...", NamedTextColor.YELLOW));
+            player.setResourcePack("http://static.cavetale.com/resourcepacks/Void.zip",
+                                   "eace0b705db220d5467f28a25381176804e2687b",
+                                   false,
+                                   Component.text("Empty resource pack", NamedTextColor.YELLOW));
+            return true;
+        }
+        if (args.length != 0) return false;
         player.setResourcePack(url, hash, false, message);
         player.sendMessage(Component.text("Sending resource pack...", NamedTextColor.GREEN));
         return true;

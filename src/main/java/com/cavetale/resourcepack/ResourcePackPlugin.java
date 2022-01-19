@@ -8,8 +8,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
@@ -27,10 +29,12 @@ import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ResourcePackPlugin extends JavaPlugin implements Listener {
-    String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
-    String hash = "";
-    Map<UUID, Integer> failedAttempts = new HashMap<>();
-    Component message = Component.text("Custom blocks and items, and awesome chat!", NamedTextColor.GREEN);
+    private static ResourcePackPlugin instance;
+    protected String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
+    protected String hash = "";
+    protected Map<UUID, Integer> failedAttempts = new HashMap<>();
+    protected Component message = Component.text("Custom blocks and items, and awesome chat!", NamedTextColor.GREEN);
+    protected Set<UUID> loadedCache = new HashSet<>();
 
     enum LoadStatus {
         LOADED,
@@ -40,6 +44,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        instance = this;
         loadHash();
         Bukkit.getScheduler().runTaskTimer(this, this::loadHashAsync, 0L, 20L * 60L);
         getServer().getPluginManager().registerEvents(this, this);
@@ -75,17 +80,20 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                 getLoadStatus(player, loadStatus -> {
                         switch (loadStatus) {
                         case NOT_LOADED:
+                            loadedCache.remove(player.getUniqueId());
                             if (player.hasPermission("resourcepack.send")) {
                                 player.setResourcePack(url, hash, false, message);
                             }
                             break;
                         case LOADED_OUTDATED:
+                            loadedCache.remove(player.getUniqueId());
                             if (player.hasPermission("resourcepack.send.switch")) {
                                 getLogger().info("Sending updated pack to " + player.getName());
                                 player.setResourcePack(url, hash, false, message);
                             }
                             break;
                         case LOADED:
+                            loadedCache.add(player.getUniqueId());
                         default:
                             break;
                         }
@@ -95,7 +103,9 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(final PlayerQuitEvent event) {
-        failedAttempts.remove(event.getPlayer().getUniqueId());
+        final UUID uuid = event.getPlayer().getUniqueId();
+        failedAttempts.remove(uuid);
+        loadedCache.remove(uuid);
     }
 
     public void getLoadStatus(Player player, Consumer<LoadStatus> callback) {
@@ -158,6 +168,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         getLogger().info("ResourcePack: " + event.getStatus() + " " + player.getName());
         switch (event.getStatus()) {
         case FAILED_DOWNLOAD: {
+            loadedCache.remove(player.getUniqueId());
             UUID uuid = player.getUniqueId();
             int failCount = failedAttempts.compute(uuid, (u, i) -> i != null ? i + 1 : 1);
             int maxFailCount = 2;
@@ -174,6 +185,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             break;
         }
         case DECLINED: {
+            loadedCache.remove(player.getUniqueId());
             failedAttempts.remove(player.getUniqueId());
             getLogger().warning("Declined resource pack: " +  player.getName());
             Component msg = Component.text()
@@ -189,6 +201,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             break;
         }
         case SUCCESSFULLY_LOADED: {
+            loadedCache.add(player.getUniqueId());
             failedAttempts.remove(player.getUniqueId());
             UUID uuid = player.getUniqueId();
             String key = "ResourcePack." + uuid;
@@ -213,5 +226,15 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                     Redis.del("ResourcePack." + payload.getPlayer().getUuid());
                 });
         }
+    }
+
+    /**
+     * Get the cached loaded status of any online player.
+     * @param player the player
+     * @return true if, to the best of our knowledge, the player has
+     *   the server resource pack loaded, False otherwise.
+     */
+    public static boolean isLoaded(Player player) {
+        return instance.loadedCache.contains(player.getUniqueId());
     }
 }

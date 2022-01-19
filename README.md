@@ -29,3 +29,17 @@ enable server resource packs.
 - `/resourcepack.send` - Send the resource pack when the player joins
 - `/resourcepack.resend` - Send the resource pack whenever the hash changes
 - `/resourcepack.command` - Use the `/rp` command to send the pack
+
+## API
+
+The static method `ResourcePackPlugin::isLoaded(Player)` will check if
+a player currently has the resource pack loaded.  A local cache is
+used, so that Redis needs not be queried.  When false is returned, we
+could consider sending an alt text in chat, instead of the intended
+glyph, or a different item type in a container GUI:
+
+```java
+player.sendMessage(ResourcePackPlugin.isLoaded(player)
+                   ? DefaultFont.YES_BUTTON
+		   : Component.text("[Yes]", NamedTextColor.BLUE));
+```

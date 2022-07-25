@@ -1,7 +1,8 @@
 package com.cavetale.resourcepack;
 
+import com.cavetale.core.connect.Connect;
+import com.cavetale.core.event.connect.ConnectMessageEvent;
 import com.winthier.connect.Redis;
-import com.winthier.connect.event.ConnectMessageEvent;
 import com.winthier.connect.payload.PlayerServerPayload;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,7 +16,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -27,14 +27,24 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import static net.kyori.adventure.text.Component.join;
+import static net.kyori.adventure.text.Component.newline;
+import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.JoinConfiguration.separator;
+import static net.kyori.adventure.text.format.NamedTextColor.*;
 
 public final class ResourcePackPlugin extends JavaPlugin implements Listener {
-    private static ResourcePackPlugin instance;
+    protected static final String MESSAGE_ADD = "resourcepack:add";
+    protected static final String MESSAGE_REMOVE = "resourcepack:remove";
+
+    protected static ResourcePackPlugin instance;
     protected String url = "http://static.cavetale.com/resourcepacks/Cavetale.zip";
     protected String hash = "";
     protected Map<UUID, Integer> failedAttempts = new HashMap<>();
-    protected Component message = Component.text("Custom blocks and items, and awesome chat!", NamedTextColor.GREEN);
+    protected Component message = text("Custom blocks and items, and awesome chat!", GREEN);
     protected Set<UUID> loadedCache = new HashSet<>();
+    protected CoreServerResourcePack coreServerResourcePack = new CoreServerResourcePack();
+    protected ResourcePackAdminCommand resourcePackAdminCommand = new ResourcePackAdminCommand(this);
 
     enum LoadStatus {
         LOADED,
@@ -43,11 +53,17 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     }
 
     @Override
-    public void onEnable() {
+    public void onLoad() {
         instance = this;
+        coreServerResourcePack.register();
+    }
+
+    @Override
+    public void onEnable() {
         loadHash();
         Bukkit.getScheduler().runTaskTimer(this, this::loadHashAsync, 0L, 20L * 60L);
         getServer().getPluginManager().registerEvents(this, this);
+        resourcePackAdminCommand.enable();
     }
 
     @Override
@@ -58,16 +74,12 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         }
         Player player = (Player) sender;
         if (args.length == 1 && args[0].equals("reset") && player.hasPermission("resourcepack.reset")) {
-            player.sendMessage(Component.text("Sending void resource pack...", NamedTextColor.YELLOW));
-            player.setResourcePack("http://static.cavetale.com/resourcepacks/Void.zip",
-                                   "eace0b705db220d5467f28a25381176804e2687b",
-                                   false,
-                                   Component.text("Empty resource pack", NamedTextColor.YELLOW));
+            resourcePackAdminCommand.reset(player);
             return true;
         }
         if (args.length != 0) return false;
         player.setResourcePack(url, hash, false, message);
-        player.sendMessage(Component.text("Sending resource pack...", NamedTextColor.GREEN));
+        player.sendMessage(text("Sending resource pack...", GREEN));
         return true;
     }
 
@@ -81,12 +93,14 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                         switch (loadStatus) {
                         case NOT_LOADED:
                             loadedCache.remove(player.getUniqueId());
+                            Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
                             if (player.hasPermission("resourcepack.send")) {
                                 player.setResourcePack(url, hash, false, message);
                             }
                             break;
                         case LOADED_OUTDATED:
                             loadedCache.remove(player.getUniqueId());
+                            Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
                             if (player.hasPermission("resourcepack.send.switch")) {
                                 getLogger().info("Sending updated pack to " + player.getName());
                                 player.setResourcePack(url, hash, false, message);
@@ -94,6 +108,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             break;
                         case LOADED:
                             loadedCache.add(player.getUniqueId());
+                            Connect.get().broadcastMessage(MESSAGE_ADD, "" + player.getUniqueId());
                         default:
                             break;
                         }
@@ -105,7 +120,6 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     public void onPlayerQuit(final PlayerQuitEvent event) {
         final UUID uuid = event.getPlayer().getUniqueId();
         failedAttempts.remove(uuid);
-        loadedCache.remove(uuid);
     }
 
     public void getLoadStatus(Player player, Consumer<LoadStatus> callback) {
@@ -169,6 +183,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         switch (event.getStatus()) {
         case FAILED_DOWNLOAD: {
             loadedCache.remove(player.getUniqueId());
+            Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
             UUID uuid = player.getUniqueId();
             int failCount = failedAttempts.compute(uuid, (u, i) -> i != null ? i + 1 : 1);
             int maxFailCount = 2;
@@ -186,22 +201,19 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         }
         case DECLINED: {
             loadedCache.remove(player.getUniqueId());
+            Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
             failedAttempts.remove(player.getUniqueId());
             getLogger().warning("Declined resource pack: " +  player.getName());
-            Component msg = Component.text()
-                .append(Component.text("Please use our Resource Pack:", NamedTextColor.RED))
-                .append(Component.newline())
-                .append(Component.text("\u2022 Open your Multiplayer Server List", NamedTextColor.RED))
-                .append(Component.newline())
-                .append(Component.text("\u2022 Add or Edit cavetale.com", NamedTextColor.RED))
-                .append(Component.newline())
-                .append(Component.text("\u2022 Set 'Server Resource Packs: Enabled'", NamedTextColor.RED))
-                .build();
-            player.sendMessage(msg);
+            player.sendMessage(join(separator(newline()),
+                                    text("Please use our Resource Pack:", RED),
+                                    text("\u2022 Open your Multiplayer Server List", RED),
+                                    text("\u2022 Add or Edit cavetale.com", RED),
+                                    text("\u2022 Set 'Server Resource Packs: Enabled'", RED)));
             break;
         }
         case SUCCESSFULLY_LOADED: {
             loadedCache.add(player.getUniqueId());
+            Connect.get().broadcastMessage(MESSAGE_ADD, "" + player.getUniqueId());
             failedAttempts.remove(player.getUniqueId());
             UUID uuid = player.getUniqueId();
             String key = "ResourcePack." + uuid;
@@ -219,12 +231,24 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     void onConnectMessage(ConnectMessageEvent event) {
-        // Wart: All servers will attempt to delete this
-        if ("BUNGEE_PLAYER_QUIT".equals(event.getMessage().getChannel())) {
-            PlayerServerPayload payload = PlayerServerPayload.deserialize(event.getMessage().getPayload());
+        switch (event.getChannel()) {
+        case "BUNGEE_PLAYER_QUIT": {
+            // Wart: All servers will attempt to delete this
+            PlayerServerPayload payload = PlayerServerPayload.deserialize(event.getPayload());
+            loadedCache.remove(payload.getPlayer().getUuid());
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                     Redis.del("ResourcePack." + payload.getPlayer().getUuid());
                 });
+            break;
+        }
+        case MESSAGE_ADD:
+            loadedCache.add(UUID.fromString(event.getPayload()));
+            break;
+        case MESSAGE_REMOVE:
+            loadedCache.remove(UUID.fromString(event.getPayload()));
+            break;
+        default:
+            break;
         }
     }
 

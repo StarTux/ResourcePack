@@ -1,12 +1,16 @@
 main: com.cavetale.resourcepack.ResourcePackPlugin
 name: ResourcePack
+
 version: 0.1
-api-version: 1.17
+api-version: 1.19
+
 description: Use Cavetale Resource Pack
 author: StarTux
 website: https://github.com/StarTux/ResourcePack
-depend: [Connect]
+
+depend: [Core, Connect]
 softdepend: []
+
 commands:
 
   resourcepack:
@@ -14,6 +18,12 @@ commands:
     description: Send the resource pack
     permission: resourcepack.command
     usage: /resourcepack
+
+  resourcepackadmin:
+    aliases: [rpadm]
+    description: Admin commands
+    permission: resourcepack.admin
+    usage: /rpadm
 
 permissions:
 
@@ -40,3 +50,9 @@ permissions:
   resourcepack.reset:
     description: Reset your resource pack
     default: op
+
+  resourcepack.admin:
+    description: Use /rpadm
+    default: op
+    children:
+      resourcepack.reset: true

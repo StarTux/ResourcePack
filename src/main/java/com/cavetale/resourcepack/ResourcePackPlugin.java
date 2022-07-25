@@ -47,12 +47,6 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     protected CoreServerResourcePack coreServerResourcePack = new CoreServerResourcePack();
     protected ResourcePackAdminCommand resourcePackAdminCommand = new ResourcePackAdminCommand(this);
 
-    enum LoadStatus {
-        LOADED,
-        LOADED_OUTDATED,
-        NOT_LOADED;
-    }
-
     @Override
     public void onLoad() {
         instance = this;
@@ -96,7 +90,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         if (hash == null || hash.isEmpty()) return;
         Bukkit.getScheduler().runTaskLater(this, () -> {
                 if (!player.isOnline()) return;
-                getLoadStatus(player, loadStatus -> {
+                getLoadStatus(player.getUniqueId(), loadStatus -> {
                         switch (loadStatus) {
                         case NOT_LOADED:
                             loadedCache.remove(player.getUniqueId());
@@ -129,8 +123,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         failedAttempts.remove(uuid);
     }
 
-    public void getLoadStatus(Player player, Consumer<LoadStatus> callback) {
-        final UUID uuid = player.getUniqueId();
+    public void getLoadStatus(UUID uuid, Consumer<LoadStatus> callback) {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                 String playerHash = Redis.get("ResourcePack." + uuid);
                 LoadStatus result = playerHash == null

@@ -59,12 +59,14 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTaskTimer(this, this::loadHashAsync, 0L, 20L * 60L);
         getServer().getPluginManager().registerEvents(this, this);
         resourcePackAdminCommand.enable();
-        for (RemotePlayer player : Connect.get().getRemotePlayers()) {
-            UUID uuid = player.getUniqueId();
-            if (Redis.get("ResourcePack." + uuid) != null) {
-                loadedCache.add(uuid);
-            }
-        }
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+                for (RemotePlayer player : Connect.get().getRemotePlayers()) {
+                    UUID uuid = player.getUniqueId();
+                    if (Redis.get("ResourcePack." + uuid) != null) {
+                        loadedCache.add(uuid);
+                    }
+                }
+            }, 50L);
     }
 
     @Override

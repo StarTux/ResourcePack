@@ -1,5 +1,6 @@
 package com.cavetale.resourcepack;
 
+import com.cavetale.core.command.RemotePlayer;
 import com.cavetale.core.connect.Connect;
 import com.cavetale.core.event.connect.ConnectMessageEvent;
 import com.winthier.connect.Redis;
@@ -64,6 +65,12 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTaskTimer(this, this::loadHashAsync, 0L, 20L * 60L);
         getServer().getPluginManager().registerEvents(this, this);
         resourcePackAdminCommand.enable();
+        for (RemotePlayer player : Connect.get().getRemotePlayers()) {
+            UUID uuid = player.getUniqueId();
+            if (Redis.get("ResourcePack." + uuid) != null) {
+                loadedCache.add(uuid);
+            }
+        }
     }
 
     @Override

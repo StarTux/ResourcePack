@@ -3,6 +3,8 @@ package com.cavetale.resourcepack;
 import com.cavetale.core.command.RemotePlayer;
 import com.cavetale.core.connect.Connect;
 import com.cavetale.core.event.connect.ConnectMessageEvent;
+import com.cavetale.core.font.DefaultFont;
+import com.cavetale.mytems.Mytems;
 import com.winthier.connect.Redis;
 import com.winthier.connect.payload.PlayerServerPayload;
 import java.io.IOException;
@@ -31,7 +33,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.newline;
 import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
 import static net.kyori.adventure.text.JoinConfiguration.separator;
+import static net.kyori.adventure.text.event.ClickEvent.runCommand;
+import static net.kyori.adventure.text.event.HoverEvent.showText;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
 
 public final class ResourcePackPlugin extends JavaPlugin implements Listener {
@@ -222,6 +227,22 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                     Redis.set(key, hash, 60 * 60 * 24);
                 });
+            player.sendMessage(join(separator(newline()),
+                                    join(noSeparators(),
+                                         DefaultFont.CAVETALE,
+                                         text(" Resource Pack Loaded ", GREEN),
+                                         Mytems.SMILE),
+                                    join(noSeparators(),
+                                         DefaultFont.CAVETALE,
+                                         text(" If anything looks wrong, type ", GRAY),
+                                         text("/rp", GREEN),
+                                         text(" to ", GRAY),
+                                         Mytems.REDO,
+                                         text("reload", GRAY)))
+                               .clickEvent(runCommand("/rp"))
+                               .hoverEvent(showText(join(separator(newline()),
+                                                         text("/rp", GREEN),
+                                                         text("Reload Resource Pack", DARK_GRAY)))));
             break;
         }
         case ACCEPTED:

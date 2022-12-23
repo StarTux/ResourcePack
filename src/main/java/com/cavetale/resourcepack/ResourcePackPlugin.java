@@ -286,11 +286,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     }
 
     private void sendResourcePack(Player player) {
-        if (player.hasPermission("resourcepack.testing")) {
-            String nurl = "http://static.cavetale.com/resourcepack/" + hash + ".zip";
-            player.setResourcePack(nurl, hash, false, message);
-        } else {
-            player.setResourcePack(url, hash, false, message);
-        }
+        String nurl = "http://static.cavetale.com/resourcepack/" + hash + ".zip";
+        player.setResourcePack(nurl, hash, false, message);
     }
 }

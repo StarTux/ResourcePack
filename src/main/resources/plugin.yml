@@ -56,3 +56,7 @@ permissions:
     default: op
     children:
       resourcepack.reset: true
+
+  resourcepack.testing:
+    description: Eligibility for testing features
+    default: op

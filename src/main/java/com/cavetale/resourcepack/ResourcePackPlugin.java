@@ -86,7 +86,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length != 0) return false;
-        player.setResourcePack(url, hash, false, message);
+        sendResourcePack(player);
         player.sendMessage(text("Sending resource pack...", GREEN));
         return true;
     }
@@ -103,7 +103,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             loadedCache.remove(player.getUniqueId());
                             Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
                             if (player.hasPermission("resourcepack.send")) {
-                                player.setResourcePack(url, hash, false, message);
+                                sendResourcePack(player);
                             }
                             break;
                         case LOADED_OUTDATED:
@@ -111,7 +111,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
                             if (player.hasPermission("resourcepack.send.switch")) {
                                 getLogger().info("Sending updated pack to " + player.getName());
-                                player.setResourcePack(url, hash, false, message);
+                                sendResourcePack(player);
                             }
                             break;
                         case LOADED:
@@ -154,7 +154,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             for (Player player : Bukkit.getOnlinePlayers()) {
                                 if (player.hasPermission("resourcepack.send.update")) {
                                     getLogger().info("Sending updated pack to " + player.getName());
-                                    player.setResourcePack(url, hash, false, message);
+                                    sendResourcePack(player);
                                 }
                             }
                         }
@@ -201,7 +201,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             if (failCount < maxFailCount && player.hasPermission("resourcepack.send.failed")) {
                 Bukkit.getScheduler().runTaskLater(this, () -> {
                         getLogger().info("Re-sending failed pack to " + player.getName());
-                        player.setResourcePack(url, hash, false, message);
+                        sendResourcePack(player);
                     }, 20L);
             }
             break;
@@ -283,5 +283,14 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
      */
     public static boolean isLoaded(Player player) {
         return instance.loadedCache.contains(player.getUniqueId());
+    }
+
+    private void sendResourcePack(Player player) {
+        if (player.hasPermission("resourcepack.testing")) {
+            String nurl = "http://static.cavetale.com/resourcepack/" + hash + ".zip";
+            player.setResourcePack(nurl, hash, false, message);
+        } else {
+            player.setResourcePack(url, hash, false, message);
+        }
     }
 }

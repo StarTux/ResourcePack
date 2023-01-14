@@ -33,6 +33,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.newline;
 import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.Component.textOfChildren;
 import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
 import static net.kyori.adventure.text.JoinConfiguration.separator;
 import static net.kyori.adventure.text.event.ClickEvent.runCommand;
@@ -51,6 +52,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     protected Set<UUID> loadedCache = new HashSet<>();
     protected CoreServerResourcePack coreServerResourcePack = new CoreServerResourcePack();
     protected ResourcePackAdminCommand resourcePackAdminCommand = new ResourcePackAdminCommand(this);
+    protected boolean doSendHelpMessage = false;
 
     @Override
     public void onLoad() {
@@ -227,22 +229,22 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                     Redis.set(key, hash, 60 * 60 * 24);
                 });
-            player.sendMessage(join(separator(newline()),
-                                    join(noSeparators(),
-                                         DefaultFont.CAVETALE,
-                                         text(" Resource Pack Loaded ", GREEN),
-                                         Mytems.SMILE),
-                                    join(noSeparators(),
-                                         DefaultFont.CAVETALE,
-                                         text(" If anything looks wrong, type ", GRAY),
-                                         text("/rp", GREEN),
-                                         text(" to ", GRAY),
-                                         Mytems.REDO,
-                                         text("reload", GRAY)))
-                               .clickEvent(runCommand("/rp"))
-                               .hoverEvent(showText(join(separator(newline()),
-                                                         text("/rp", GREEN),
-                                                         text("Reload Resource Pack", DARK_GRAY)))));
+            if (doSendHelpMessage) {
+                player.sendMessage(join(separator(newline()),
+                                        textOfChildren(DefaultFont.CAVETALE,
+                                                       text(" Resource Pack Loaded ", GREEN),
+                                                       Mytems.SMILE),
+                                        textOfChildren(DefaultFont.CAVETALE,
+                                                       text(" If anything looks wrong, type ", GRAY),
+                                                       text("/rp", GREEN),
+                                                       text(" to ", GRAY),
+                                                       Mytems.REDO,
+                                                       text("reload", GRAY)))
+                                   .clickEvent(runCommand("/rp"))
+                                   .hoverEvent(showText(join(separator(newline()),
+                                                             text("/rp", GREEN),
+                                                             text("Reload Resource Pack", DARK_GRAY)))));
+            }
             break;
         }
         case ACCEPTED:

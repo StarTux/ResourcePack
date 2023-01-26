@@ -1,7 +1,9 @@
 package com.cavetale.resourcepack;
 
+import com.cavetale.core.back.Back;
 import com.cavetale.core.command.RemotePlayer;
 import com.cavetale.core.connect.Connect;
+import com.cavetale.core.connect.NetworkServer;
 import com.cavetale.core.event.connect.ConnectMessageEvent;
 import com.cavetale.core.font.DefaultFont;
 import com.cavetale.mytems.Mytems;
@@ -34,7 +36,6 @@ import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.newline;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.Component.textOfChildren;
-import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
 import static net.kyori.adventure.text.JoinConfiguration.separator;
 import static net.kyori.adventure.text.event.ClickEvent.runCommand;
 import static net.kyori.adventure.text.event.HoverEvent.showText;
@@ -244,6 +245,9 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                                    .hoverEvent(showText(join(separator(newline()),
                                                              text("/rp", GREEN),
                                                              text("Reload Resource Pack", DARK_GRAY)))));
+            }
+            if (player.hasPermission("resourcepack.back") && NetworkServer.current() == NetworkServer.HUB) {
+                Back.sendBack(player, backLocation -> { });
             }
             break;
         }

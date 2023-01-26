@@ -60,3 +60,7 @@ permissions:
   resourcepack.testing:
     description: Eligibility for testing features
     default: op
+
+  resourcepack.back:
+    description: Return to back location after resource pack was loaded
+    default: op

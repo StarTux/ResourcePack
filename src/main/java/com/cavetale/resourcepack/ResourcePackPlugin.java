@@ -208,6 +208,9 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                         sendResourcePack(player);
                     }, 20L);
             }
+            if (NetworkServer.current() == NetworkServer.VOID) {
+                Bungee.send(player, "hub");
+            }
             break;
         }
         case DECLINED: {
@@ -220,6 +223,9 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                                     text("\u2022 Open your Multiplayer Server List", RED),
                                     text("\u2022 Add or Edit cavetale.com", RED),
                                     text("\u2022 Set 'Server Resource Packs: Enabled'", RED)));
+            if (NetworkServer.current() == NetworkServer.VOID) {
+                Bungee.send(player, "hub");
+            }
             break;
         }
         case SUCCESSFULLY_LOADED: {

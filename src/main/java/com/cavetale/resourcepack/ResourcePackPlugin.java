@@ -1,6 +1,7 @@
 package com.cavetale.resourcepack;
 
 import com.cavetale.core.back.Back;
+import com.cavetale.core.bungee.Bungee;
 import com.cavetale.core.command.RemotePlayer;
 import com.cavetale.core.connect.Connect;
 import com.cavetale.core.connect.NetworkServer;
@@ -246,8 +247,21 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                                                              text("/rp", GREEN),
                                                              text("Reload Resource Pack", DARK_GRAY)))));
             }
-            if (player.hasPermission("resourcepack.back") && NetworkServer.current() == NetworkServer.HUB) {
-                Back.sendBack(player, backLocation -> { });
+            if (player.hasPermission("resourcepack.back")) {
+                if (NetworkServer.current() == NetworkServer.HUB) {
+                    Back.sendBack(player, backLocation -> { });
+                } else if (NetworkServer.current() == NetworkServer.VOID) {
+                    Back.sendBack(player, backLocation -> {
+                            if (backLocation == null) {
+                                Bungee.send(player, "hub");
+                            } else {
+                                Bukkit.getScheduler().runTaskLater(this, () -> {
+                                        if (!player.isOnline()) return;
+                                        Bungee.send(player, "hub");
+                                    }, 60L);
+                            }
+                        });
+                }
             }
             break;
         }

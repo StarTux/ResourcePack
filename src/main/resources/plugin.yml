@@ -2,7 +2,7 @@ main: com.cavetale.resourcepack.ResourcePackPlugin
 name: ResourcePack
 
 version: 0.1
-api-version: 1.19
+api-version: '1.20'
 
 description: Use Cavetale Resource Pack
 author: StarTux

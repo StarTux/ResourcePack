@@ -107,6 +107,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             loadedCache.remove(player.getUniqueId());
                             Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
                             if (player.hasPermission("resourcepack.send")) {
+                                getLogger().info("NotLoaded: Sending updated pack to " + player.getName());
                                 sendResourcePack(player);
                             }
                             break;
@@ -114,13 +115,18 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             loadedCache.remove(player.getUniqueId());
                             Connect.get().broadcastMessage(MESSAGE_REMOVE, "" + player.getUniqueId());
                             if (player.hasPermission("resourcepack.send.switch")) {
-                                getLogger().info("Sending updated pack to " + player.getName());
+                                getLogger().info("Outdated: Sending updated pack to " + player.getName());
                                 sendResourcePack(player);
                             }
                             break;
                         case LOADED:
-                            loadedCache.add(player.getUniqueId());
-                            Connect.get().broadcastMessage(MESSAGE_ADD, "" + player.getUniqueId());
+                            if (player.hasPermission("resourcepack.send.switch")) {
+                                getLogger().info("Loaded: Sending updated pack to " + player.getName());
+                                sendResourcePack(player);
+                            } else {
+                                loadedCache.add(player.getUniqueId());
+                                Connect.get().broadcastMessage(MESSAGE_ADD, "" + player.getUniqueId());
+                            }
                         default:
                             break;
                         }

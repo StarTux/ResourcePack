@@ -100,8 +100,18 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
         final Player player = event.getPlayer();
         if (hash == null || hash.isEmpty()) return;
         if (player.hasPermission("resourcepack.send.switch")) {
-            getLogger().info("Switch: Sending updated pack to " + player.getName());
-            sendResourcePack(player);
+            if (NetworkServer.current() == NetworkServer.VOID) {
+                if (player.hasPermission("resourcepack.back")) {
+                    Back.sendBack(player, backLocation -> {
+                            if (backLocation == null) Bungee.send(player, "hub");
+                        });
+                } else {
+                    Bungee.send(player, "hub");
+                }
+            } else {
+                getLogger().info("Switch: Sending pack to " + player.getName());
+                sendResourcePack(player);
+            }
             return;
         }
         Bukkit.getScheduler().runTaskLater(this, () -> {

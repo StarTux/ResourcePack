@@ -99,6 +99,11 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
     public void onPlayerJoin(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
         if (hash == null || hash.isEmpty()) return;
+        if (player.hasPermission("resourcepack.send.switch")) {
+            getLogger().info("Switch: Sending updated pack to " + player.getName());
+            sendResourcePack(player);
+            return;
+        }
         Bukkit.getScheduler().runTaskLater(this, () -> {
                 if (!player.isOnline()) return;
                 getLoadStatus(player.getUniqueId(), loadStatus -> {
@@ -120,13 +125,8 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                             }
                             break;
                         case LOADED:
-                            if (player.hasPermission("resourcepack.send.switch")) {
-                                getLogger().info("Loaded: Sending updated pack to " + player.getName());
-                                sendResourcePack(player);
-                            } else {
-                                loadedCache.add(player.getUniqueId());
-                                Connect.get().broadcastMessage(MESSAGE_ADD, "" + player.getUniqueId());
-                            }
+                            loadedCache.add(player.getUniqueId());
+                            Connect.get().broadcastMessage(MESSAGE_ADD, "" + player.getUniqueId());
                         default:
                             break;
                         }

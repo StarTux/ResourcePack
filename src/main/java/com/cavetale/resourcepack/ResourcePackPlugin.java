@@ -11,6 +11,8 @@ import com.cavetale.mytems.Mytems;
 import com.winthier.connect.Redis;
 import com.winthier.connect.payload.PlayerServerPayload;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,6 +35,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import static net.kyori.adventure.resource.ResourcePackInfo.resourcePackInfo;
+import static net.kyori.adventure.resource.ResourcePackRequest.resourcePackRequest;
 import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.newline;
 import static net.kyori.adventure.text.Component.text;
@@ -315,6 +319,22 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
 
     private void sendResourcePack(Player player) {
         final String nurl = "https://cavetale.com/resourcepack/" + hash + ".zip";
-        player.setResourcePack(nurl, hash, false, message);
+        final URI uri;
+        try {
+            uri = new URI(nurl);
+        } catch (URISyntaxException urise) {
+            throw new IllegalStateException(urise);
+        }
+        final UUID uuid = UUID.fromString("38b7fcf5-8cd8-4654-98f8-64a98c286f1e");
+        player.sendResourcePacks(resourcePackRequest()
+                                .packs(resourcePackInfo()
+                                       .hash(hash)
+                                       .id(uuid)
+                                       .uri(uri)
+                                       .build())
+                                .prompt(message)
+                                .replace(true)
+                                .required(false)
+                                .build());
     }
 }

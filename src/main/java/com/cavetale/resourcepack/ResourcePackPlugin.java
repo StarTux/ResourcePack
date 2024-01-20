@@ -264,7 +264,7 @@ public final class ResourcePackPlugin extends JavaPlugin implements Listener {
                                                              text("Reload Resource Pack", DARK_GRAY)))));
             }
             if (player.hasPermission("resourcepack.back") && NetworkServer.current() == NetworkServer.VOID) {
-                Back.sendBack(player, backLocation -> {
+                Back.sendBackAuto(player, backLocation -> {
                         if (backLocation == null) {
                             Bungee.send(player, "hub");
                         } else {
